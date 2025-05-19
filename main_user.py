@@ -11,6 +11,7 @@ from models.model import Informer
 from data_loader import STDataSet
 from data_loader import FTDataSet
 
+TORCH_COMPILE_DISABLED = True
 
 class MyLR:
     def __init__(self, optimizer: optim.Adam, step_rate: float = 0.9, threshold: int = 1) -> None:
@@ -44,8 +45,8 @@ class MyLR:
 
 
 class EarlyStop(object):
-    def __init__(self, patience: int = 15) -> None:
-        self._patience: int = patience or 15
+    def __init__(self, patience: int = 18) -> None:
+        self._patience: int = patience
         self._counter: int = 0
         self._best_sore: float = float('inf')
         self._train_loss: float = float('inf')
@@ -109,6 +110,7 @@ optimizer = optim.Adam(model.parameters(), lr=model_lr, weight_decay=0.0)
 lr_scheduler = MyLR(optimizer)
 
 
+@torch.compile(disable=TORCH_COMPILE_DISABLED)
 def process_one_batch(
     batch_x: torch.Tensor, batch_y: torch.Tensor, batch_x_mark: torch.Tensor, batch_y_mark: torch.Tensor
 ) -> tuple[torch.Tensor, torch.Tensor]:
@@ -131,12 +133,13 @@ def process_one_batch(
     return outputs, batch_y
 
 
+@torch.compile(disable=TORCH_COMPILE_DISABLED)
 def train() -> None:
     train_loader = DataLoader(dataset, batch_size=BATCH_SIZE, drop_last=True, num_workers=0)
     train_loss = [0.0] * len(train_loader)
     best_model_dict = None
     best_score = float('inf')
-    early_stop = EarlyStop(30)
+    early_stop = EarlyStop(8)
     for epoch in range(EPOCHS):
         for i, (batch_x, batch_y, batch_x_mark, batch_y_mark) in enumerate(train_loader):
             optimizer.zero_grad()
@@ -164,13 +167,13 @@ def train() -> None:
         'model': best_model_dict,
         'optimizer': optimizer.state_dict(),
     }
-    model_path = './pth/informer.pth'
+    model_path = './.out/informer.pth'
     torch.save(save_data, model_path)
     print(f'score: {best_score}, Save model to { model_path}!')
 
 
 def valid() -> tuple[np.ndarray, np.ndarray]:
-    model_path = './pth/informer.pth'
+    model_path = './.out/informer.pth'
     pth = torch.load(model_path, weights_only=True)
     model.load_state_dict(pth['model'])
     model.eval()
@@ -193,7 +196,7 @@ def valid() -> tuple[np.ndarray, np.ndarray]:
 
 
 if __name__ == '__main__':
-    # train()
+    #train()
     preds, trues = valid()
     print(preds.shape)
     print(trues.shape)
