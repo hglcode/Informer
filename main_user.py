@@ -11,7 +11,11 @@ from models.model import Informer
 from data_loader import STDataSet
 from data_loader import FTDataSet
 
-TORCH_COMPILE_DISABLED = True
+import torch._dynamo
+
+torch._dynamo.config.suppress_errors = True
+
+TORCH_COMPILE_DISABLED = False
 
 class MyLR:
     def __init__(self, optimizer: optim.Adam, step_rate: float = 0.9, threshold: int = 1) -> None:

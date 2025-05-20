@@ -174,12 +174,6 @@ class FTDataSet(Dataset):
         df['code1'] = df['code'].apply(lambda x: int(x[:2]))
         df['code2'] = df['code'].apply(lambda x: int(x[2:]))
         df.drop(columns=['code'], inplace=True)
-        # old code:
-        # df['rise_amp'] = df['rise_amp'].apply(lambda x: float(x[: -1 if x.endswith('%') else len(x)]))
-        # df['amplitude'] = df['amplitude'].apply(lambda x: float(x[2:-1]))
-        # df['hld_rate'] = df['hld_rate'].apply(lambda x: float(x[:-1]))
-        # stamp = pd.DataFrame({'date': df.time})
-        # data = df.drop(columns=['time'])
         stamp = df[['date']]
         data = df.drop(columns=['date'])
         self.columns = list(data.columns)
