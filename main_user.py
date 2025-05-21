@@ -27,6 +27,7 @@ TORCH_COMPILE_DISABLED = False
 DEVICE = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 BATCH_SIZE = 16
 EPOCHS = int(1e9)
+LEARN_RATE = 1e-2
 
 seq_len = 8
 label_len = seq_len >> 1
@@ -43,7 +44,7 @@ model = Informer(
     factor=5,
     d_model=512,
     n_heads=8,
-    # e_layers > 5 and d_layers > 4 will encountered error
+    # e_layers must be equal to d_layers
     e_layers=64,
     d_layers=64,
     d_ff=512,
@@ -64,9 +65,8 @@ try:
 except:
     logger.warning('Failed load pretrained model.')
 
-model_lr = 1e-1
 criterion = nn.MSELoss()
-optimizer = optim.Adam(model.parameters(), lr=model_lr, weight_decay=0.0)
+optimizer = optim.Adam(model.parameters(), lr=LEARN_RATE, weight_decay=0.0)
 lr_scheduler = LRScheduler(optimizer)
 
 
