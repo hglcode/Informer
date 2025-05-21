@@ -10,6 +10,8 @@ from typing import Callable
 from torch import nn
 from torch import optim
 from torch.utils.data import DataLoader
+from loguru import logger
+
 from models.model import Informer
 from data_loader import STDataSet
 from data_loader import FTDataSet
@@ -26,16 +28,15 @@ DEVICE = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 BATCH_SIZE = 16
 EPOCHS = int(1e9)
 
-seq_len = 20
-label_len = 20
-pred_len = 5
-C_OUT = 4
+seq_len = 8
+label_len = seq_len >> 1
+pred_len = seq_len >> 1
 
 dataset = FTDataSet((seq_len, label_len, pred_len), d_path = os.path.join(os.path.dirname(__file__), '.exchange/csv/utf8/c_2006_ft.csv'))
 model = Informer(
     enc_in=dataset._data.shape[-1],
     dec_in=dataset._data.shape[-1],
-    c_out=C_OUT,
+    c_out=len(dataset.predict_indexs),
     seq_len=seq_len,
     label_len=label_len,
     out_len=pred_len,  # out_len,
@@ -57,8 +58,11 @@ model = Informer(
     device=DEVICE,
 ).to(DEVICE)
 
-#pretrained = torch.load(os.path.join(os.path.dirname(__file__), '.out', 'informer.pth'))
-#model.load_state_dict(pretrained['model'])
+try:
+    pretrained = torch.load(os.path.join(os.path.dirname(__file__), '.out', 'informer.pth'))
+    model.load_state_dict(pretrained['model'])
+except:
+    logger.warning('Failed load pretrained model.')
 
 model_lr = 1e-1
 criterion = nn.MSELoss()
@@ -82,7 +86,7 @@ def train_one_batch(
     # encoder - decoder
     with torch.autocast('cuda', torch.bfloat16):
         out = model(batch_x, batch_x_mark, dec_inp, batch_y_mark)
-        lss = loss_fn(out, batch_y[:, -pred_len:, :C_OUT].to(DEVICE))
+        lss = loss_fn(out, batch_y[:, -pred_len:, dataset.predict_indexs].to(DEVICE))
     # field:
     # f_dim = -1  # predict multiple value
     # batch_y = batch_y[:, -pred_len:, f_dim:].to(DEVICE)
@@ -110,7 +114,7 @@ def train() -> None:
         if loss_avg < best_score:
             best_model_dict = copy.deepcopy(model.state_dict())
             best_score = loss_avg
-        print(f'{epoch:>2d}: loss: {loss_avg}, best: {best_score}, stop: {early_stop._counter}')
+        logger.info(f'{epoch:>2d}: loss: {loss_avg}, best: {best_score}, stop: {early_stop._counter}')
         if early_stop(loss_avg):
             break
 
@@ -125,7 +129,7 @@ def train() -> None:
     }
     model_path = './.out/informer.pth'
     torch.save(save_data, model_path)
-    print(f'score: {best_score}, Save model to { model_path}!')
+    logger.info(f'score: {best_score}, Save model to { model_path}!')
 
 
 def valid_one_batch(
@@ -161,7 +165,7 @@ def valid() -> tuple[np.ndarray, np.ndarray]:
         for batch_x, batch_y, batch_x_mark, batch_y_mark in valid_loader:
             pred = valid_one_batch(batch_x, batch_y, batch_x_mark, batch_y_mark)
             preds.append(pred.cpu().numpy())
-            trues.append(batch_y[:, -pred_len:, :C_OUT].cpu().numpy())
+            trues.append(batch_y[:, -pred_len:, dataset.predict_indexs].cpu().numpy())
 
     #preds = np.concatenate(preds)
     #trues = np.concatenate(trues)
@@ -175,5 +179,5 @@ def valid() -> tuple[np.ndarray, np.ndarray]:
 if __name__ == '__main__':
     train()
     preds, trues = valid()
-    print(preds.shape)
-    print(trues.shape)
+    logger.info(preds.shape)
+    logger.info(trues.shape)

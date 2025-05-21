@@ -156,12 +156,20 @@ class STDataSet(Dataset):
 class FTDataSet(Dataset):
     def __init__(
         self,
-        sizes: tuple[int, int, int], # (seq_len, label_len, pred_len)
+        sizes: tuple[int, int, int],
         d_path: str = os.path.join(os.path.dirname(__file__), '.exchange/csv/utf8/c_2006_ft.csv'),
+        p_cols: tuple[str, ...] = ('close', )
     ) -> None:
+        '''
+        Args:
+            szies: (seq_len, label_len, pred_len)
+            d_path: data path
+            p_cols: predict columns
+        '''
         super().__init__()
-        self.scaler: StandardScaler = StandardScaler()
-        self._d_path: str = os.path.expanduser(d_path)
+        self.scaler = StandardScaler()
+        self._d_path = os.path.expanduser(d_path)
+        self._p_cols = p_cols
         self._seq_len, self._label_len, self._pred_len = sizes
         self._read_data()
 
@@ -175,14 +183,15 @@ class FTDataSet(Dataset):
         df.drop(columns=['code'], inplace=True)
         stamp = df[['date']]
         data = df.drop(columns=['date'])
-        self.columns = list(data.columns)
+        self.columns = data.columns
+        self.predict_indexs = data.columns.get_indexer(self._p_cols)
         self.scaler.fit(data.values)
         stamp_features = time_features(stamp, 1, 'b')
         if stamp_features is None:
             raise ValueError("time_features returned None, cannot assign to self._stamp")
         self._stamp = stamp_features
         self._data = self.scaler.transform(data.values)
-        self._data_raw = df
+        self._data_raw = data
 
     def __getitem__(self, idx: int) -> tuple:
         xa = idx
