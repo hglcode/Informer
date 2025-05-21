@@ -8,7 +8,7 @@ from models.decoder import Decoder, DecoderLayer
 from models.attn import FullAttention, ProbAttention, AttentionLayer
 from models.embed import DataEmbedding
 
-TORCH_COMPILE_DISABLED = True
+TORCH_COMPILE_DISABLED = False
 
 class Informer(nn.Module):
     def __init__(self, enc_in, dec_in, c_out, seq_len, label_len, out_len,
@@ -144,6 +144,7 @@ class InformerStack(nn.Module):
         # self.end_conv2 = nn.Conv1d(in_channels=d_model, out_channels=c_out, kernel_size=1, bias=True)
         self.projection = nn.Linear(d_model, c_out, bias=True)
 
+    @torch.compile(disable=TORCH_COMPILE_DISABLED)
     def forward(self, x_enc, x_mark_enc, x_dec, x_mark_dec,
                 enc_self_mask=None, dec_self_mask=None, dec_enc_mask=None):
         enc_out = self.enc_embedding(x_enc, x_mark_enc)

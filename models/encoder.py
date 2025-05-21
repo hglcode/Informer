@@ -2,6 +2,8 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+TORCH_COMPILE_DISABLED = False
+
 class ConvLayer(nn.Module):
     def __init__(self, c_in):
         super(ConvLayer, self).__init__()
@@ -15,6 +17,7 @@ class ConvLayer(nn.Module):
         self.activation = nn.ELU()
         self.maxPool = nn.MaxPool1d(kernel_size=3, stride=2, padding=1)
 
+    @torch.compile(disable=TORCH_COMPILE_DISABLED)
     def forward(self, x):
         x = self.downConv(x.permute(0, 2, 1))
         x = self.norm(x)
@@ -35,6 +38,7 @@ class EncoderLayer(nn.Module):
         self.dropout = nn.Dropout(dropout)
         self.activation = F.relu if activation == "relu" else F.gelu
 
+    @torch.compile(disable=TORCH_COMPILE_DISABLED)
     def forward(self, x, attn_mask=None):
         # x [B, L, D]
         # x = x + self.dropout(self.attention(
@@ -60,6 +64,7 @@ class Encoder(nn.Module):
         self.conv_layers = nn.ModuleList(conv_layers) if conv_layers is not None else None
         self.norm = norm_layer
 
+    @torch.compile(disable=TORCH_COMPILE_DISABLED)
     def forward(self, x, attn_mask=None):
         # x [B, L, D]
         attns = []
@@ -86,6 +91,7 @@ class EncoderStack(nn.Module):
         self.encoders = nn.ModuleList(encoders)
         self.inp_lens = inp_lens
 
+    @torch.compile(disable=TORCH_COMPILE_DISABLED)
     def forward(self, x, attn_mask=None):
         # x [B, L, D]
         x_stack = []; attns = []
@@ -94,5 +100,5 @@ class EncoderStack(nn.Module):
             x_s, attn = encoder(x[:, -inp_len:, :])
             x_stack.append(x_s); attns.append(attn)
         x_stack = torch.cat(x_stack, -2)
-        
+
         return x_stack, attns

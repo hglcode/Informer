@@ -2,6 +2,8 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+TORCH_COMPILE_DISABLED = False
+
 class DecoderLayer(nn.Module):
     def __init__(self, self_attention, cross_attention, d_model, d_ff=None,
                  dropout=0.1, activation="relu"):
@@ -17,6 +19,7 @@ class DecoderLayer(nn.Module):
         self.dropout = nn.Dropout(dropout)
         self.activation = F.relu if activation == "relu" else F.gelu
 
+    @torch.compile(disable=TORCH_COMPILE_DISABLED)
     def forward(self, x, cross, x_mask=None, cross_mask=None):
         x = x + self.dropout(self.self_attention(
             x, x, x,
@@ -41,6 +44,7 @@ class Decoder(nn.Module):
         self.layers = nn.ModuleList(layers)
         self.norm = norm_layer
 
+    @torch.compile(disable=TORCH_COMPILE_DISABLED)
     def forward(self, x, cross, x_mask=None, cross_mask=None):
         for layer in self.layers:
             x = layer(x, cross, x_mask=x_mask, cross_mask=cross_mask)

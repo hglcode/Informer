@@ -4,12 +4,14 @@ import torch.nn.functional as F
 
 import math
 
+TORCH_COMPILE_DISABLED = False
+
 class PositionalEmbedding(nn.Module):
     def __init__(self, d_model, max_len=5000):
         super(PositionalEmbedding, self).__init__()
         # Compute the positional encodings once in log space.
         pe = torch.zeros(max_len, d_model).float()
-        pe.require_grad = False
+        pe.requires_grad = False
 
         position = torch.arange(0, max_len).float().unsqueeze(1)
         div_term = (torch.arange(0, d_model, 2).float() * -(math.log(10000.0) / d_model)).exp()
@@ -20,19 +22,21 @@ class PositionalEmbedding(nn.Module):
         pe = pe.unsqueeze(0)
         self.register_buffer('pe', pe)
 
+    @torch.compile(disable=TORCH_COMPILE_DISABLED)
     def forward(self, x):
-        return self.pe[:, :x.size(1)]
+        return self.pe[:, :x.size(1)] # type: ignore
 
 class TokenEmbedding(nn.Module):
     def __init__(self, c_in, d_model):
         super(TokenEmbedding, self).__init__()
         padding = 1 if torch.__version__>='1.5.0' else 2
-        self.tokenConv = nn.Conv1d(in_channels=c_in, out_channels=d_model, 
+        self.tokenConv = nn.Conv1d(in_channels=c_in, out_channels=d_model,
                                     kernel_size=3, padding=padding, padding_mode='circular')
         for m in self.modules():
             if isinstance(m, nn.Conv1d):
                 nn.init.kaiming_normal_(m.weight,mode='fan_in',nonlinearity='leaky_relu')
 
+    @torch.compile(disable=TORCH_COMPILE_DISABLED)
     def forward(self, x):
         x = self.tokenConv(x.permute(0, 2, 1)).transpose(1,2)
         return x
@@ -42,7 +46,7 @@ class FixedEmbedding(nn.Module):
         super(FixedEmbedding, self).__init__()
 
         w = torch.zeros(c_in, d_model).float()
-        w.require_grad = False
+        w.requires_grad = False
 
         position = torch.arange(0, c_in).float().unsqueeze(1)
         div_term = (torch.arange(0, d_model, 2).float() * -(math.log(10000.0) / d_model)).exp()
@@ -53,6 +57,7 @@ class FixedEmbedding(nn.Module):
         self.emb = nn.Embedding(c_in, d_model)
         self.emb.weight = nn.Parameter(w, requires_grad=False)
 
+    @torch.compile(disable=TORCH_COMPILE_DISABLED)
     def forward(self, x):
         return self.emb(x).detach()
 
@@ -70,16 +75,17 @@ class TemporalEmbedding(nn.Module):
         self.weekday_embed = Embed(weekday_size, d_model)
         self.day_embed = Embed(day_size, d_model)
         self.month_embed = Embed(month_size, d_model)
-    
+
+    @torch.compile(disable=TORCH_COMPILE_DISABLED)
     def forward(self, x):
         x = x.long()
-        
+
         minute_x = self.minute_embed(x[:,:,4]) if hasattr(self, 'minute_embed') else 0.
         hour_x = self.hour_embed(x[:,:,3])
         weekday_x = self.weekday_embed(x[:,:,2])
         day_x = self.day_embed(x[:,:,1])
         month_x = self.month_embed(x[:,:,0])
-        
+
         return hour_x + weekday_x + day_x + month_x + minute_x
 
 class TimeFeatureEmbedding(nn.Module):
@@ -89,7 +95,8 @@ class TimeFeatureEmbedding(nn.Module):
         freq_map = {'h':4, 't':5, 's':6, 'm':1, 'a':1, 'w':2, 'd':3, 'b':3}
         d_inp = freq_map[freq]
         self.embed = nn.Linear(d_inp, d_model)
-    
+
+    @torch.compile(disable=TORCH_COMPILE_DISABLED)
     def forward(self, x):
         return self.embed(x)
 
@@ -103,7 +110,8 @@ class DataEmbedding(nn.Module):
 
         self.dropout = nn.Dropout(p=dropout)
 
+    @torch.compile(disable=TORCH_COMPILE_DISABLED)
     def forward(self, x, x_mark):
         x = self.value_embedding(x) + self.position_embedding(x) + self.temporal_embedding(x_mark)
-        
+
         return self.dropout(x)

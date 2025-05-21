@@ -154,20 +154,19 @@ class STDataSet(Dataset):
 
 
 class FTDataSet(Dataset):
-
     def __init__(
         self,
-        sizes: tuple[int, int, int],
-        data_path: str = os.path.join(os.path.dirname(__file__), '.exchange/csv/utf8/c_2006_ft.csv'),
+        sizes: tuple[int, int, int], # (seq_len, label_len, pred_len)
+        d_path: str = os.path.join(os.path.dirname(__file__), '.exchange/csv/utf8/c_2006_ft.csv'),
     ) -> None:
         super().__init__()
         self.scaler: StandardScaler = StandardScaler()
-        self._data_path: str = os.path.expanduser(data_path)
+        self._d_path: str = os.path.expanduser(d_path)
         self._seq_len, self._label_len, self._pred_len = sizes
         self._read_data()
 
     def _read_data(self) -> None:
-        df = pd.read_csv(self._data_path, parse_dates=['date'], date_format='%Y%m%d', dtype=DTYPES_FT)
+        df = pd.read_csv(self._d_path, parse_dates=['date'], date_format='%Y%m%d', dtype=DTYPES_FT)
         # 去掉第一条数据，原因是：第一条数据涨幅和振幅为空
         df = df[1:]
         df['code'] = df['code'].apply(lambda x: re.sub(r'^[a-z]+', '', x, flags=re.IGNORECASE))
@@ -183,13 +182,13 @@ class FTDataSet(Dataset):
             raise ValueError("time_features returned None, cannot assign to self._stamp")
         self._stamp = stamp_features
         self._data = self.scaler.transform(data.values)
-        self._data_frame = df
+        self._data_raw = df
 
     def __getitem__(self, idx: int) -> tuple:
         xa = idx
         xb = xa + self._seq_len
         ya = xb - self._label_len
-        yb = ya + self._label_len + self._pred_len
+        yb = xb + self._pred_len
 
         x = self._data[xa:xb]
         y = self._data[ya:yb]
@@ -199,4 +198,4 @@ class FTDataSet(Dataset):
         return x, y, x_mark, y_mark
 
     def __len__(self) -> int:
-        return len(self._data) - (self._seq_len + self._pred_len)
+        return len(self._data) - self._seq_len - self._pred_len
