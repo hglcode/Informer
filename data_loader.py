@@ -159,7 +159,7 @@ class FTDataSet(Dataset):
         self,
         sizes: tuple[int, int, int],
         d_path: str = os.path.join(os.path.dirname(__file__), '.exchange/o_clean_merge_ft_trend_p8r5.0_scale.jl'),
-        p_cols: tuple[str, ...] = ('close', )
+        p_cols: tuple[str, ...] = ('close',),
     ) -> None:
         '''
         Args:
@@ -171,10 +171,10 @@ class FTDataSet(Dataset):
         self._d_path = os.path.expanduser(d_path)
         self._p_cols = p_cols
         self._seq_len, self._label_len, self._pred_len = sizes
-        self._xs = []
-        self._ys = []
-        self._x_marks = []
-        self._y_marks = []
+        self._xs: list[np.ndarray] = []
+        self._ys: list[np.ndarray] = []
+        self._x_marks: list[np.ndarray] = []
+        self._y_marks: list[np.ndarray] = []
         self._read_data()
 
     def _read_data(self) -> None:
@@ -202,7 +202,6 @@ class FTDataSet(Dataset):
 
     def __getitem__(self, i: int) -> tuple:
         return self._xs[i], self._ys[i], self._x_marks[i], self._y_marks[i]
-
 
     def __len__(self) -> int:
         return len(self._xs)

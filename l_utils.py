@@ -24,7 +24,7 @@ def _get_invalid_index_list(df: pd.DataFrame, price_max: float) -> list:
 
 
 def remove_dirty_data(df: pd.DataFrame, price_max: float, inplace: bool = False) -> pd.DataFrame | None:
-    return df.drop(index=_get_invalid_index_list(df, price_max), inplace=inplace)
+    return df.drop(labels=_get_invalid_index_list(df, price_max), axis=0, inplace=inplace)
 
 
 def _group_apply(x: pd.DataFrame) -> pd.Series:
@@ -82,7 +82,9 @@ def _get_tvt_len(dataset: Any, train: float = 0.9, test: bool = False) -> tuple[
     return train_len, valid_len, test_len
 
 
-def build_data_loader(dataset: Any, rank: int, batch_size: int, n_gpu: int = torch.cuda.device_count(), shuffle: bool = True) -> DataLoader:
+def build_data_loader(
+    dataset: Any, rank: int, batch_size: int, n_gpu: int = torch.cuda.device_count(), shuffle: bool = True
+) -> DataLoader:
     worker_num = (os.cpu_count() or 0) // n_gpu
     sampler = DistributedSampler(dataset, num_replicas=n_gpu, rank=rank, shuffle=shuffle, drop_last=False) if n_gpu > 1 else None
     return DataLoader(
@@ -95,8 +97,14 @@ def build_data_loader(dataset: Any, rank: int, batch_size: int, n_gpu: int = tor
         sampler=sampler,
     )
 
+
 def random_split_dataset(
-    dataset: Any, rank: int, batch_size: int, n_gpu: int = torch.cuda.device_count(), train_ratio: float = 0.98, shuffle: bool = True
+    dataset: Any,
+    rank: int,
+    batch_size: int,
+    n_gpu: int = torch.cuda.device_count(),
+    train_ratio: float = 0.98,
+    shuffle: bool = True,
 ) -> tuple[DataLoader, DataLoader]:
     train_set, valid_set = random_split(dataset, _get_tvt_len(dataset, train_ratio, False))
     train_loader = build_data_loader(train_set, rank, batch_size, n_gpu, shuffle)
