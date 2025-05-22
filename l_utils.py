@@ -18,13 +18,13 @@ from f_utils.datetime import is_future_cn_trading_time  # type: ignore
 def _get_invalid_index_list(df: pd.DataFrame, price_max: float) -> list:
     idx_lst = []
     for i, r in df.iterrows():
-        if r.close > 0 or not is_future_cn_trading_time(r.timestamp) or r.ask_p1 > price_max or r.bid_p1 > price_max:
+        if r['close'] > 0 or not is_future_cn_trading_time(r['timestamp']) or r['ask_p1'] > price_max or r['bid_p1'] > price_max:
             idx_lst.append(i)
     return idx_lst
 
 
-def remove_dirty_data(df: pd.DataFrame, price_max: float, inplace: bool = False) -> pd.DataFrame | None:
-    return df.drop(labels=_get_invalid_index_list(df, price_max), axis=0, inplace=inplace)
+def remove_dirty_data(df: pd.DataFrame, price_max: float) -> pd.DataFrame:
+    return df.drop(labels=_get_invalid_index_list(df, price_max), axis=0)
 
 
 def _group_apply(x: pd.DataFrame) -> pd.Series:
@@ -32,20 +32,21 @@ def _group_apply(x: pd.DataFrame) -> pd.Series:
     l = len(x)
 
     d['open'] = x.iloc[0].last
-    d['high'] = x['last'].max()
-    d['low'] = x['last'].min()
+    # following:
+    # d['high'] = x['last'].max()
+    # d['low'] = x['last'].min()
     d['close'] = x.iloc[-1].last
 
-    d.volume = (x.volume / l).sum()
-    d.high = x.high.max()
-    d.low = x.low.min()
-    d.average = (x.average / l).sum()
-    d.ask_p1 = (x.ask_p1 / l).sum()
-    d.ask_v1 = (x.ask_v1 / l).sum()
-    d.bid_p1 = (x.bid_p1 / l).sum()
-    d.bid_v1 = (x.bid_v1 / l).sum()
-    d.position = (x.position / l).sum()
-    d.turnover = (x.turnover / l).sum()
+    d['volume'] = (x['volume'] / l).sum()
+    d['high'] = x['high'].max()
+    d['low'] = x['low'].min()
+    d['average'] = (x['average'] / l).sum()
+    d['ask_p1'] = (x['ask_p1'] / l).sum()
+    d['ask_v1'] = (x['ask_v1'] / l).sum()
+    d['bid_p1'] = (x['bid_p1'] / l).sum()
+    d['bid_v1'] = (x['bid_v1'] / l).sum()
+    d['position'] = (x['position'] / l).sum()
+    d['turnover'] = (x['turnover'] / l).sum()
 
     return d
 
@@ -55,12 +56,12 @@ def tick2second(df: pd.DataFrame) -> pd.DataFrame:
         t = x.time()
         return datetime.combine(x.date(), time(t.hour, t.minute, t.second))
 
-    df['dt'] = df.timestamp.apply(_apply)
+    df['dt'] = df['timestamp'].apply(_apply)
     return df.groupby(by='dt', as_index=False, sort=True, dropna=True)[df.columns].apply(_group_apply)
 
 
 def tick2minute(df: pd.DataFrame) -> pd.DataFrame:
-    df['dt'] = df.timestamp.apply(lambda x: datetime.combine(x.date(), time(x.time().hour, x.time().minute)))
+    df['dt'] = df['timestamp'].apply(lambda x: datetime.combine(x.date(), time(x.time().hour, x.time().minute)))
     return df.groupby(by='dt', as_index=False, sort=True, dropna=True)[df.columns].apply(_group_apply)
 
 
@@ -86,7 +87,6 @@ def build_data_loader(
     dataset: Any, rank: int, batch_size: int, n_gpu: int = torch.cuda.device_count(), shuffle: bool = True
 ) -> DataLoader:
     worker_num = (os.cpu_count() or 0) // n_gpu
-    sampler = DistributedSampler(dataset, num_replicas=n_gpu, rank=rank, shuffle=shuffle, drop_last=False) if n_gpu > 1 else None
     return DataLoader(
         dataset,
         batch_size,
@@ -94,7 +94,9 @@ def build_data_loader(
         num_workers=worker_num,
         pin_memory=True,
         drop_last=False,
-        sampler=sampler,
+        sampler=(
+            DistributedSampler(dataset, num_replicas=n_gpu, rank=rank, shuffle=shuffle, drop_last=False) if n_gpu > 1 else None
+        ),
     )
 
 
