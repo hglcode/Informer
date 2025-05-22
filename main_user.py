@@ -4,6 +4,7 @@ import os
 import copy
 import torch
 import numpy as np
+from tqdm import tqdm
 import statistics as stat
 
 from typing import Callable
@@ -105,7 +106,7 @@ def train() -> None:
     best_score = float('inf')
     early_stop = EarlyStopper(8)
     for epoch in range(EPOCHS):
-        for i, (batch_x, batch_y, batch_x_mark, batch_y_mark) in enumerate(train_loader):
+        for i, (batch_x, batch_y, batch_x_mark, batch_y_mark) in tqdm(enumerate(train_loader), desc='Training', colour='green'):
             optimizer.zero_grad()
             loss = train_one_batch(batch_x, batch_y, batch_x_mark, batch_y_mark, criterion)
             train_loss[i] = loss.item()
