@@ -8,7 +8,7 @@ from models.decoder import Decoder, DecoderLayer
 from models.attn import FullAttention, ProbAttention, AttentionLayer
 from models.embed import DataEmbedding
 
-TORCH_COMPILE_DISABLED = False
+TORCH_COMPILE_DISABLED = True
 
 class Informer(nn.Module):
     def __init__(self, enc_in, dec_in, c_out, seq_len, label_len, out_len,

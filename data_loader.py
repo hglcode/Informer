@@ -1,7 +1,8 @@
 import os
-import re
+import joblib
 import numpy as np
 import pandas as pd
+from tqdm import tqdm
 
 from sklearn.preprocessing import StandardScaler  # type: ignore
 from torch.utils.data import Dataset
@@ -157,7 +158,7 @@ class FTDataSet(Dataset):
     def __init__(
         self,
         sizes: tuple[int, int, int],
-        d_path: str = os.path.join(os.path.dirname(__file__), '.exchange/csv/utf8/c_2006_ft.csv'),
+        d_path: str = os.path.join(os.path.dirname(__file__), '.exchange/o_clean_merge_ft_trend_p8r5.0_scale.jl'),
         p_cols: tuple[str, ...] = ('close', )
     ) -> None:
         '''
@@ -167,44 +168,41 @@ class FTDataSet(Dataset):
             p_cols: predict columns
         '''
         super().__init__()
-        self.scaler = StandardScaler()
         self._d_path = os.path.expanduser(d_path)
         self._p_cols = p_cols
         self._seq_len, self._label_len, self._pred_len = sizes
+        self._xs = []
+        self._ys = []
+        self._x_marks = []
+        self._y_marks = []
         self._read_data()
 
     def _read_data(self) -> None:
-        df = pd.read_csv(self._d_path, parse_dates=['date'], date_format='%Y%m%d', dtype=DTYPES_FT)
+        raw: dict[str, pd.DataFrame] = joblib.load(self._d_path)
         # 去掉第一条数据，原因是：第一条数据涨幅和振幅为空
-        df = df[1:]
-        df['code'] = df['code'].apply(lambda x: re.sub(r'^[a-z]+', '', x, flags=re.IGNORECASE))
-        df['code1'] = df['code'].apply(lambda x: int(x[:2]))
-        df['code2'] = df['code'].apply(lambda x: int(x[2:]))
-        df.drop(columns=['code'], inplace=True)
-        stamp = df[['date']]
-        data = df.drop(columns=['date'])
-        self.columns = data.columns
-        self.predict_indexs = data.columns.get_indexer(self._p_cols)
-        self.scaler.fit(data.values)
-        stamp_features = time_features(stamp, 1, 'b')
-        if stamp_features is None:
-            raise ValueError("time_features returned None, cannot assign to self._stamp")
-        self._stamp = stamp_features
-        self._data = self.scaler.transform(data.values)
-        self._data_raw = data
+        dfs = list(raw.values())
+        self.pred_indexs = dfs[0].drop(columns=['date']).columns.get_indexer(self._p_cols)
+        for df in tqdm(dfs, colour='green', desc='Loading data'):
+            dates = pd.to_datetime(df['date'].astype(str), format='%Y%m%d')
+            times = time_features(pd.DataFrame({'date': dates}), 1, 'b')
+            datas = df.drop(columns=['date']).values
+            index = 0
+            length = len(datas)
+            while index + self._seq_len + self._pred_len < length:
+                xa = index
+                xb = xa + self._seq_len
+                ya = xb - self._label_len
+                yb = xb + self._pred_len
+                index += self._label_len + self._pred_len
 
-    def __getitem__(self, idx: int) -> tuple:
-        xa = idx
-        xb = xa + self._seq_len
-        ya = xb - self._label_len
-        yb = xb + self._pred_len
+                self._xs.append(datas[xa:xb])
+                self._ys.append(datas[ya:yb])
+                self._x_marks.append(times[xa:xb])
+                self._y_marks.append(times[ya:yb])
 
-        x = self._data[xa:xb]
-        y = self._data[ya:yb]
-        x_mark = self._stamp[xa:xb]
-        y_mark = self._stamp[ya:yb]
+    def __getitem__(self, i: int) -> tuple:
+        return self._xs[i], self._ys[i], self._x_marks[i], self._y_marks[i]
 
-        return x, y, x_mark, y_mark
 
     def __len__(self) -> int:
-        return len(self._data) - self._seq_len - self._pred_len
+        return len(self._xs)

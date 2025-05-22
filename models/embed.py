@@ -4,7 +4,7 @@ import torch.nn.functional as F
 
 import math
 
-TORCH_COMPILE_DISABLED = False
+TORCH_COMPILE_DISABLED = True
 
 class PositionalEmbedding(nn.Module):
     def __init__(self, d_model, max_len=5000):

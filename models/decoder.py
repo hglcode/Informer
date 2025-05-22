@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-TORCH_COMPILE_DISABLED = False
+TORCH_COMPILE_DISABLED = True
 
 class DecoderLayer(nn.Module):
     def __init__(self, self_attention, cross_attention, d_model, d_ff=None,

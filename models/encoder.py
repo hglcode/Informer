@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-TORCH_COMPILE_DISABLED = False
+TORCH_COMPILE_DISABLED = True
 
 class ConvLayer(nn.Module):
     def __init__(self, c_in):

@@ -30,14 +30,14 @@ EPOCHS = int(1e9)
 LEARN_RATE = 1e-2
 
 seq_len = 8
-label_len = seq_len >> 1
-pred_len = seq_len >> 1
+label_len = 5
+pred_len = 1
 
-dataset = FTDataSet((seq_len, label_len, pred_len), d_path = os.path.join(os.path.dirname(__file__), '.exchange/csv/utf8/c_2006_ft.csv'))
+dataset = FTDataSet((seq_len, label_len, pred_len), d_path = os.path.join(os.path.dirname(__file__), '.exchange/o_clean_merge_ft_trend_p8r5.0_scale.jl'))
 model = Informer(
-    enc_in=dataset._data.shape[-1],
-    dec_in=dataset._data.shape[-1],
-    c_out=len(dataset.predict_indexs),
+    enc_in=dataset[0][0].shape[-1],
+    dec_in=dataset[0][0].shape[-1],
+    c_out=len(dataset.pred_indexs),
     seq_len=seq_len,
     label_len=label_len,
     out_len=pred_len,  # out_len,
@@ -86,7 +86,7 @@ def train_one_batch(
     # encoder - decoder
     with torch.autocast('cuda', torch.bfloat16):
         out = model(batch_x, batch_x_mark, dec_inp, batch_y_mark)
-        lss = loss_fn(out, batch_y[:, -pred_len:, dataset.predict_indexs].to(DEVICE))
+        lss = loss_fn(out, batch_y[:, -pred_len:, dataset.pred_indexs].to(DEVICE))
     # field:
     # f_dim = -1  # predict multiple value
     # batch_y = batch_y[:, -pred_len:, f_dim:].to(DEVICE)
@@ -165,7 +165,7 @@ def valid() -> tuple[np.ndarray, np.ndarray]:
         for batch_x, batch_y, batch_x_mark, batch_y_mark in valid_loader:
             pred = valid_one_batch(batch_x, batch_y, batch_x_mark, batch_y_mark)
             preds.append(pred.cpu().numpy())
-            trues.append(batch_y[:, -pred_len:, dataset.predict_indexs].cpu().numpy())
+            trues.append(batch_y[:, -pred_len:, dataset.pred_indexs].cpu().numpy())
 
     #preds = np.concatenate(preds)
     #trues = np.concatenate(trues)
