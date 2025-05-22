@@ -199,6 +199,7 @@ class FTDataSet(Dataset):
                 self._ys.append(datas[ya:yb])
                 self._x_marks.append(times[xa:xb])
                 self._y_marks.append(times[ya:yb])
+            break  # FIXME: for debug only
 
     def __getitem__(self, i: int) -> tuple:
         return self._xs[i], self._ys[i], self._x_marks[i], self._y_marks[i]
