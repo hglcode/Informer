@@ -33,7 +33,10 @@ seq_len = 8
 label_len = 5
 pred_len = 1
 
-dataset = FTDataSet((seq_len, label_len, pred_len), d_path = os.path.join(os.path.dirname(__file__), '.exchange/o_clean_merge_ft_trend_p8r5.0_scale.jl'))
+dataset = FTDataSet(
+    (seq_len, label_len, pred_len),
+    d_path=os.path.join(os.path.dirname(__file__), '.exchange/o_clean_merge_ft_trend_p8r5.0_scale.jl'),
+)
 model = Informer(
     enc_in=dataset[0][0].shape[-1],
     dec_in=dataset[0][0].shape[-1],
@@ -62,7 +65,7 @@ model = Informer(
 try:
     pretrained = torch.load(os.path.join(os.path.dirname(__file__), '.out', 'informer.pth'))
     model.load_state_dict(pretrained['model'])
-except:
+except Exception:
     logger.warning('Failed load pretrained model.')
 
 criterion = nn.MSELoss()
@@ -145,13 +148,14 @@ def valid_one_batch(
     dec_inp = torch.zeros([batch_y.shape[0], pred_len, batch_y.shape[-1]]).float()
     dec_inp = torch.cat([batch_y[:, :label_len, :], dec_inp], dim=1).float().to(DEVICE)
     # encoder - decoder
-    #out = model(batch_x, batch_x_mark, dec_inp, batch_y_mark)
-    #lss = criterion(out, batch_y[:, -pred_len:, :C_OUT].to(DEVICE))
+    # out = model(batch_x, batch_x_mark, dec_inp, batch_y_mark)
+    # lss = criterion(out, batch_y[:, -pred_len:, :C_OUT].to(DEVICE))
     # field:
     # f_dim = -1  # predict multiple value
     # batch_y = batch_y[:, -pred_len:, f_dim:].to(DEVICE)
     # batch_y = batch_y[:, -pred_len:, :C_OUT].to(DEVICE)
     return model(batch_x, batch_x_mark, dec_inp, batch_y_mark)
+
 
 def valid() -> tuple[np.ndarray, np.ndarray]:
     model_path = './.out/informer.pth'
@@ -167,12 +171,13 @@ def valid() -> tuple[np.ndarray, np.ndarray]:
             preds.append(pred.cpu().numpy())
             trues.append(batch_y[:, -pred_len:, dataset.pred_indexs].cpu().numpy())
 
-    #preds = np.concatenate(preds)
-    #trues = np.concatenate(trues)
-    #ps = dataset.scaler.inverse_transform(preds.reshape(-1, dataset._data.shape[-1]))
-    #ts = dataset.scaler.inverse_transform(trues.reshape(-1, dataset._data.shape[-1]))
-    #preds = ps.reshape(-1, preds.shape[-2], preds.shape[-1])
-    #trues = ts.reshape(-1, trues.shape[-2], trues.shape[-1])
+    # test code:
+    # preds = np.concatenate(preds)
+    # trues = np.concatenate(trues)
+    # ps = dataset.scaler.inverse_transform(preds.reshape(-1, dataset._data.shape[-1]))
+    # ts = dataset.scaler.inverse_transform(trues.reshape(-1, dataset._data.shape[-1]))
+    # preds = ps.reshape(-1, preds.shape[-2], preds.shape[-1])
+    # trues = ts.reshape(-1, trues.shape[-2], trues.shape[-1])
     return np.concatenate(preds), np.concatenate(trues)
 
 
