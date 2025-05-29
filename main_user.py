@@ -21,12 +21,12 @@ from l_utils import LRScheduler
 
 import torch._dynamo
 
-torch._dynamo.config.suppress_errors = True
+torch._dynamo.config.suppress_errors = False
 
 TORCH_COMPILE_DISABLED = False
 
 DEVICE = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
-BATCH_SIZE = 16
+BATCH_SIZE = 192
 EPOCHS = int(1e9)
 LEARN_RATE = 1e-2
 
@@ -36,7 +36,7 @@ pred_len = 1
 
 dataset = FTDataSet(
     (seq_len, label_len, pred_len),
-    d_path=os.path.join(os.path.dirname(__file__), '.exchange/o_clean_merge_ft_trend_p8r5.0_scale.jl'),
+    d_path=os.path.join(os.path.dirname(__file__), 'data/o_clean_merge_ft_trend_p8r5.0_scale.jl'),
 )
 model = Informer(
     enc_in=dataset[0][0].shape[-1],
@@ -49,8 +49,8 @@ model = Informer(
     d_model=512,
     n_heads=8,
     # e_layers must be equal to d_layers
-    e_layers=64,
-    d_layers=64,
+    e_layers=16,
+    d_layers=16,
     d_ff=512,
     dropout=0.0,
     attn='full',  # 'prob',

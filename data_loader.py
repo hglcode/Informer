@@ -99,7 +99,7 @@ class STDataSet(Dataset):
             self._data_path,
             parse_dates=['date'],
             date_format='%Y/%m/%d',
-            dtype=DTYPES_ST,
+            dtype=DTYPES_ST,  # type: ignore
         )
         # 去掉第一条数据，原因是：第一条数据涨幅和振幅为空
         df = df[1:]
@@ -199,7 +199,7 @@ class FTDataSet(Dataset):
                 self._ys.append(datas[ya:yb])
                 self._x_marks.append(times[xa:xb])
                 self._y_marks.append(times[ya:yb])
-            break  # FIXME: for debug only
+            # break  # FIXME: for debug only
 
     def __getitem__(self, i: int) -> tuple:
         return self._xs[i], self._ys[i], self._x_marks[i], self._y_marks[i]
